@@ -173,6 +173,9 @@ For create without a clear title:
 - If ambiguity > 1, use `intent=clarify` with a clear question.
 - Understand relative time (tomorrow/next week) using the provided timezone.
 
+**Language support:**
+- Arabic dialects: Palestinian, Egyptian, Gulf
+
 **Few-shot examples:**
 - “ورجيني مهام اليوم” → `list_tasks` (today + todo)
 - “احذف مهمة الاجتماع” → `delete_task` (`taskRef.title`)

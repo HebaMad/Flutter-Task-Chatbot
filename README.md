@@ -1,7 +1,7 @@
 # Flutter Task Chatbot
 
 ## Overview
-Flutter Task Chatbot is an MVP plan for a task manager that combines a Flutter UI with a backend proxy that calls Gemini and executes tool-based CRUD actions. The agent must return **structured JSON only** according to the schema below so the backend can deterministically execute task operations.
+Flutter Task Chatbot is an MVP plan for a task manager that combines a Flutter UI with a backend proxy that calls Gemini (via LangChain) and executes tool-based CRUD actions. The agent must return **structured JSON only** according to the schema below so the backend can deterministically execute task operations.
 
 ## Deliverables
 ### A) Flutter App
@@ -22,8 +22,8 @@ Flutter Task Chatbot is an MVP plan for a task manager that combines a Flutter U
 - `POST /chat`
 - Optional: `GET /health`
 - Responsibilities
-  - Call Gemini Developer API
-  - Execute tool actions (CRUD)
+  - Call Gemini Developer API (via LangChain)
+  - Execute tool actions (CRUD) through LangChain tools
   - Read/write tasks (Firestore or local DB)
 
 ### C) Agent Spec (Gemini + Tools)
@@ -32,10 +32,11 @@ Flutter Task Chatbot is an MVP plan for a task manager that combines a Flutter U
 - Disambiguation logic
 
 ## Proposed Stack (Google + Gemini Free)
-- **LLM/Agent**: Gemini Developer API (Gemini Flash recommended for MVP)
+- **LLM/Agent**: Gemini Developer API (Gemini Flash recommended for MVP) orchestrated by LangChain
 - **Backend**
   - Option 1: Firebase Cloud Functions + Firestore
   - Option 2: FastAPI or Node proxy (local or hosted)
+- **Agent Orchestration**: LangChain (tool calling + routing)
 - **Database**
   - Cloud: Firestore
   - Local-first: Hive or SQLite

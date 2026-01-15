@@ -4,3 +4,5 @@ pydantic
 langchain
 pytest
 httpx
+langchain-google-genai
+python-dotenv

@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+import json
 
 from app.routes.health import router as health_router
 from app.routes.chat import router as chat_router
@@ -14,7 +19,23 @@ from app.core.errors import (
     unhandled_exception_handler,
 )
 
-app = FastAPI(title="AI Tasks Chatbot")
+# Custom JSONResponse that ensures UTF-8 encoding
+class UTF8JSONResponse(JSONResponse):
+    media_type = "application/json; charset=utf-8"
+    
+    def render(self, content) -> bytes:
+        return json.dumps(
+            content,
+            ensure_ascii=False,
+            allow_nan=False,
+            indent=None,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+app = FastAPI(
+    title="AI Tasks Chatbot",
+    default_response_class=UTF8JSONResponse
+)
 
 # --- Middlewares ---
 app.add_middleware(RequestIdMiddleware)

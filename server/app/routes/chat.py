@@ -24,6 +24,7 @@ async def chat(req: ChatRequest, request: Request):
     # Day 3: interpret intent placeholder (Day 4 will become real LangChain)
     intent_result = interpret_intent_with_langchain(req.message)
 
+
     # Reply: stub (localized)
     reply_text = msg(req.dialect, "STUB_OK")
 

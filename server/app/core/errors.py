@@ -27,7 +27,11 @@ def json_error(request: Request, status_code: int, code: str, message_key: str) 
             requestId=request_id,
         )
     )
-    return JSONResponse(status_code=status_code, content=payload.model_dump())
+    return JSONResponse(
+        status_code=status_code,
+        content=payload.model_dump(),
+        media_type="application/json; charset=utf-8"
+    )
 
 
 def validation_exception_handler(request: Request, exc: ValidationError) -> JSONResponse:
@@ -36,4 +40,8 @@ def validation_exception_handler(request: Request, exc: ValidationError) -> JSON
 
 
 def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    # Log the exception for debugging
+    import traceback
+    print(f"Unhandled exception: {type(exc).__name__}: {exc}", file=__import__("sys").stderr)
+    traceback.print_exc()
     return json_error(request, 500, "internal_error", "ERR_INTERNAL")

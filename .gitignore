@@ -1,19 +1,15 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# env
+.env
+*.env
 
-# Virtual env
+# virtualenv
 .venv/
 venv/
 
-# Env vars
-.env
+# python
+__pycache__/
+*.pyc
 
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
+# local test files
+test-*.ps1
+response.json

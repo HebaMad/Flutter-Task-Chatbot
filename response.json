@@ -1,0 +1,15 @@
+﻿{
+    "reply":  "أي وحدة قصدك؟ اختار وحدة من القائمة.",
+    "actions":  [
+
+                ],
+    "needsClarification":  true,
+    "candidates":  [
+
+                   ],
+    "billing":  {
+                    "tokensSpent":  0,
+                    "balance":  0
+                },
+    "requestId":  "5282e2ed-f51e-4035-8e20-67735a0b650d"
+}

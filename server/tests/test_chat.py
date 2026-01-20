@@ -44,6 +44,15 @@ def test_chat_success_pal_reply():
     assert "requestId" in body
     assert body["needsClarification"] in (True, False)
 
+def test_chat_khg_reply():
+    r = client.post(
+        "/v1/chat",
+        headers=_auth_headers(),
+        json={**VALID_BODY, "dialect": "khg"}
+    )
+    assert r.status_code == 200
+    assert "تمام" in r.json()["reply"]
+
 def test_chat_dialect_changes_reply():
     r1 = client.post(
         "/v1/chat",

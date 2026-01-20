@@ -13,6 +13,7 @@ router = APIRouter()
 # In-memory store (Day 5)
 store = TaskStore()
 
+print("LOADED CHAT ROUTE FROM:", __file__)
 
 @router.post("/v1/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, request: Request):
@@ -39,21 +40,33 @@ async def chat(req: ChatRequest, request: Request):
     )
 
     # Reply (based on action)
+    
     reply = build_reply(action, req.dialect)
 
-    needs_clarification = (
-        intent_result.intent == "clarify" or action.get("type") == "clarify"
-    )
+    needs_clarification = action.get("type") == "clarify"
+
+    action_payload = action.get("payload", {}) or {}
+    raw_candidates = action_payload.get("candidates", []) if action.get("type") == "clarify" else []
+
+# normalize candidates to match response model (taskId required)
+    candidates = [
+    {
+        "taskId": c.get("taskId") or c.get("id"),   # يقبل الاثنين
+        "title": c.get("title", ""),
+    }
+    for c in raw_candidates
+    if (c.get("taskId") or c.get("id")) and c.get("title") is not None
+]
+
 
     return {
     "reply": reply,
-    "actions": [action],          # ✅ List
+    "actions": [action],
     "needsClarification": needs_clarification,
-    "candidates": [],             # ✅ List
-    "billing": {
-        "tokensSpent": 0,
-        "balance": 0
-    },
-    "requestId": rid
+    "candidates": candidates,   
+    "billing": {"tokensSpent": 0, "balance": 0},
+    "requestId": rid,
 }
+
+
 

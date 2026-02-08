@@ -16,39 +16,68 @@ def _title_query_from_entities(entities: dict) -> str:
 
 
 
-def execute_intent(*, store: TaskStore, user_id: str, intent: str, entities: dict) -> dict:
+def execute_intent(*, store: TaskStore, user_id: str, intent: str, entities: dict, clarification: str | None = None) -> dict:
+    # ---- CLARIFY ----
+    if intent == "clarify":
+        return {
+            "type": "clarify",
+            "payload": {"message": clarification or "ممكن توضح أكتر؟"}
+        }
+
     # ---- CREATE ----
     if intent == "create_task":
         title = (entities.get("title") or "").strip()
-        due_text = entities.get("due_text")
+        due_at = entities.get("due_at")
+        description = entities.get("description")
+        priority = entities.get("priority", "medium")
+        duration_minutes = entities.get("duration_minutes")
 
         if not title:
-            return {"type": "clarify", "payload": {"message": "بدّي عنوان للمهمة."}}
+            return {"type": "clarify", "payload": {"key": "clarify_missing_title"}}
 
-        task = store.create_task(user_id, title=title, due_text=due_text)
-        return {"type": "create_task", "payload": {"task": task.__dict__}}
+        try:
+            task = store.create_task(
+                user_id, 
+                title=title, 
+                description=description, 
+                due_at=due_at, 
+                priority=priority,
+                source="chat",
+                duration_minutes=duration_minutes,
+            )
+            return {"type": "create_task", "payload": {"task": task.__dict__}}
+        except Exception as exc:
+            return {"type": "message", "payload": {"message": "تعذر حفظ المهمة حالياً."}}
 
     # ---- LIST ----
     if intent == "list_tasks":
-        tasks = [t.__dict__ for t in store.list_tasks(user_id)]
-        return {"type": "list_tasks", "payload": {"tasks": tasks}}
+        status = entities.get("status", "todo")
+        scope = entities.get("scope", "all")
+        timezone = entities.get("timezone", "UTC")
+        try:
+            tasks = [t.__dict__ for t in store.list_tasks(user_id, status=status, scope=scope, timezone=timezone)]
+            return {"type": "list_tasks", "payload": {"tasks": tasks}}
+        except Exception:
+            return {"type": "message", "payload": {"message": "تعذر قراءة المهام حالياً."}}
 
     # ---- UPDATE (with disambiguation) ----
     if intent == "update_task":
         task_id = entities.get("task_id")
         patch = entities.get("patch") or {}
         title_patch = patch.get("title", entities.get("title"))
+        duration_minutes = patch.get("duration_minutes", entities.get("duration_minutes"))
 
-        due_text = entities.get("due_text")
-        completed = entities.get("completed")
+        due_at = entities.get("due_at")
+        description = entities.get("description")
+        priority = entities.get("priority")
+        status = entities.get("status")
 
- 
         if not task_id:
             q = _title_query_from_entities(entities)
             if not q:
                 return {
                     "type": "clarify",
-                    "payload": {"message": "أي مهمة بدك تعدّلي؟ اعطيني عنوانها."},
+                    "payload": {"key": "clarify_update_which_task"},
                 }
 
             matches = store.search_tasks(user_id, q, limit=5)
@@ -56,14 +85,14 @@ def execute_intent(*, store: TaskStore, user_id: str, intent: str, entities: dic
             if len(matches) == 0:
                 return {
                     "type": "clarify",
-                    "payload": {"message": "ما لقيت مهمة بهذا العنوان. شو اسمها بالضبط؟"},
+                    "payload": {"key": "clarify_task_not_found"},
                 }
 
             if len(matches) > 1:
                 return {
                     "type": "clarify",
                     "payload": {
-                        "message": "في أكثر من مهمة بنفس الاسم، أي وحدة تقصدي؟",
+                        "key": "clarify_multiple_matches",
                         "candidates": [{"taskId": t.id, "title": t.title} for t in matches],
                     },
                 }
@@ -71,13 +100,19 @@ def execute_intent(*, store: TaskStore, user_id: str, intent: str, entities: dic
             # 1 match -> نفّذ مباشرة
             task_id = matches[0].id
 
-        task = store.update_task(
-            user_id,
-            task_id,
-            title=title_patch,
-            due_text=due_text,
-            completed=completed,
-        )
+        try:
+            task = store.update_task(
+                user_id,
+                task_id,
+                title=title_patch,
+                description=description,
+                due_at=due_at,
+                priority=priority,
+                status=status,
+                duration_minutes=duration_minutes,
+            )
+        except Exception:
+            task = None
 
         if not task:
             return {
@@ -96,7 +131,7 @@ def execute_intent(*, store: TaskStore, user_id: str, intent: str, entities: dic
             if not q:
                 return {
                     "type": "clarify",
-                    "payload": {"message": "أي مهمة خلصتيها؟ اعطيني عنوانها."},
+                    "payload": {"key": "clarify_complete_which_task"},
                 }
 
             matches = store.search_tasks(user_id, q, limit=5)
@@ -104,21 +139,24 @@ def execute_intent(*, store: TaskStore, user_id: str, intent: str, entities: dic
             if len(matches) == 0:
                 return {
                     "type": "clarify",
-                    "payload": {"message": "ما لقيت مهمة بهذا العنوان. شو اسمها بالضبط؟"},
+                    "payload": {"key": "clarify_task_not_found"},
                 }
 
             if len(matches) > 1:
                 return {
                     "type": "clarify",
                     "payload": {
-                        "message": "في أكثر من مهمة بنفس الاسم، أي وحدة خلصتي؟",
+                        "key": "clarify_multiple_matches",
                         "candidates": [{"taskId": t.id, "title": t.title} for t in matches],
                     },
                 }
 
             task_id = matches[0].id
 
-        task = store.update_task(user_id, task_id, completed=True)
+        try:
+            task = store.update_task(user_id, task_id, status="done")
+        except Exception:
+            task = None
 
         if not task:
             return {
@@ -130,38 +168,33 @@ def execute_intent(*, store: TaskStore, user_id: str, intent: str, entities: dic
 
 
 
-    # ---- DELETE (with disambiguation) ----
+    # ---- DELETE (confirmation required) ----
     if intent == "delete_task":
-        task_id = entities.get("task_id")
+        task_id = entities.get("task_id") or entities.get("taskId")
+        confirmed = entities.get("confirmed", False)
 
         if not task_id:
-            q = _title_query_from_entities(entities)
-            if not q:
-                return {
-                    "type": "clarify",
-                    "payload": {"message": "أي مهمة بدك أحذف؟ اعطيني عنوانها."},
-                }
+            return {
+                "type": "clarify",
+                "payload": {"key": "clarify_delete_which_task"},
+            }
 
-            matches = store.search_tasks(user_id, q, limit=5)
+        if not confirmed:
+            title = entities.get("title") or entities.get("task_title")
+            confirm_message = entities.get("confirm_message") or f"Ø¨Ø¯Ùƒ Ø£Ø­Ø°Ù: {title or task_id}ØŸ (Ù†Ø¹Ù…/Ù„Ø§)"
+            return {
+                "type": "clarify",
+                "payload": {
+                    "message": confirm_message,
+                    "task_id": task_id,
+                    "needsConfirmation": True,
+                },
+            }
 
-            if len(matches) == 0:
-                return {
-                    "type": "clarify",
-                    "payload": {"message": "ما لقيت مهمة بهذا العنوان. شو اسمها بالضبط؟"},
-                }
-
-            if len(matches) > 1:
-                return {
-                    "type": "clarify",
-                    "payload": {
-                        "message": "في أكثر من مهمة بنفس الاسم، أي وحدة بدك أحذف؟",
-                         "candidates": [{"taskId": t.id, "title": t.title} for t in matches]
-                    },
-                }
-
-            task_id = matches[0].id
-
-        ok = store.delete_task(user_id, task_id)
+        try:
+            ok = store.delete_task(user_id, task_id)
+        except Exception:
+            ok = False
         return {"type": "delete_task", "payload": {"ok": ok, "task_id": task_id}}
 
     # ---- FALLBACK ----
